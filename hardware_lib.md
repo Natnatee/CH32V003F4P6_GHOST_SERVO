@@ -1,5 +1,34 @@
 # Hardware & Library Specs
 
+## IR 38kHz + AM312 (ปัจจุบัน)
+- TX PC4 ขาชิป14 → วงจรขับ IR LED Active HIGH มีตัวจำกัดกระแส, carrier38kHz duty33% (software SysTick)
+- RX demodulated IR38kHz OUT Active LOW → PC4 ขาชิป14, โค้ดกลับ polarity; รุ่นจริงยังไม่ยืนยัน ไม่ใช้ photodiode เปล่า/obstacle sensor แทน
+- VCC และระดับ OUT ของตัวรับต้องตรงกับ MCU ตามสเปกจริง ห้ามอิงไฟ RF เดิมและห้าม12V; GND ร่วมภายในแต่ละฝั่ง
+- PIR PC1, LED PC2, servo PD2 เดิม ช่วง600–2380us เป้าหมาย160°
+- ทดสอบ environment ir_test แทน rf_test; คอมไพล์ผ่าน ยังไม่ทดสอบ IR จริง
+
+## RF 433MHz + AM312 (ประวัติเก่า)
+- Transmitter LED PC2 ล่าสุด: เมื่อ PIR HIGH ติด 3s ดับพัก 3s แล้วรอ/เริ่มใหม่ถ้า HIGH; ไม่ gate การส่ง RF และไม่เปลี่ยน LED ใน rf_test
+- Receiver ช่วงล่าสุด 600–2380µs เป้าหมายกวาดประมาณ 160° ทั้ง startup/คำสั่ง RF; home เปลี่ยน ต้องทดสอบไม่มีโหลด ระวังชนสุด/คราง ลดช่วงหากจำเป็น มุมจริงยังไม่ยืนยัน
+- ยืนยันคู่ RF ส่ง–รับได้จริงหลังแก้สาย DATA TX เป็น PC4 (ขาชิป 14) ไม่ใช่ PC0 (ขาชิป 10); รับ A5C33C ซ้ำต่อเนื่อง
+- โหมดปกติและ rf_test ใช้ decoder total/ratio เดียวกันแล้ว
+- แก้ข้อมูลแรงดัน: ผู้ใช้ยืนยัน MCU ฝั่งรับใช้ 5V, RX DATA → PC4 ตรง ไม่ใช้ divider 10kΩ/18kΩ ตามสมมติฐาน 3.3V เดิม; ไม่ต่อ 3.3V โปรแกรมเมอร์ซ้อน VDD 5V
+- `rf_test` ใช้พิน RF PC4 เดิมทั้งคู่; TX LED PC2 แสดงชุดส่ง RX PD2 LOW ไม่มี servo pulse โหมดปกติยังเลือกได้ตามเดิม
+- Transmitter LED: PC2 (TSSOP20 ขา 12) Output Active High → R 330Ω → LED → GND ติดตาม PIR HIGH ดับเมื่อ LOW; ฝั่งรับไม่มี LED นี้
+- MCU สองตัว CH32V003F4P6: โปรเจกต์ `transmitter/` และ `receiver/`
+- ส่ง: AM312 OUT → PC1 input, ASK/OOK 433MHz TX DATA ← PC4 output
+- รับ: MX-RM-5V DATA → PC4 input ผ่าน R divider 10kΩ/18kΩ เมื่อ DATA เป็น 5V และ MCU เป็น 3.3V; MG90S Signal ← PD2
+- ฝั่งรับใช้ pulse 1000–2000µs คาดประมาณ 90°; ผลทดสอบเดิมจากผู้ใช้ 1000–1500µs ได้ประมาณ 45°
+- ผังขาชิปและข้อควรระวังใน README ของแต่ละโฟลเดอร์ ห้ามเดาลำดับขาโมดูลจากภาพสินค้า
+
+## Current Test: MG90S (โค้ด root เดิม)
+- Servo: MG90S แบบกำหนดตำแหน่ง; เป้าหมายไป–กลับประมาณ 0–90°
+- Signal: **PD2**, Output Push-Pull; PD1 คงไว้สำหรับ SDI
+- Software PWM 50Hz, pulse 1000–1500µs; มุมจริงอาจต้องปรับเทียบ
+- ไฟแยก 5V แนะนำอย่างน้อย 1A: แดง = +5V, น้ำตาล = GND, ส้ม/เหลือง = PD2
+- ต่อ GND แหล่งจ่ายร่วมกับ MCU; ห้ามใช้ไฟ 3.3V ของ WCH-LinkE เลี้ยงเซอร์โว
+- ผังขาชิปและการต่ออยู่ใน `project.md`; ยังไม่ยืนยันผลทดสอบจริง
+
 ## Hardware
 
 | Part | Model | Interface | Notes |

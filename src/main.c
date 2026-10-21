@@ -1,41 +1,49 @@
 #include "ch32fun.h"
-#include <stdio.h>
 
-#define LED_PORT GPIOD
-#define LED_PIN  4  // PD4 is Physical Pin 1
+#define SERVO_PIN 2
+#define SERVO_FRAME_US 20000
+#define SERVO_MIN_US 1000
+#define SERVO_MAX_US 1500
+#define SERVO_STEP_US 5
+#define SERVO_HOLD_FRAMES 25
 
-int main()
+static void servo_frame(unsigned int pulse_us)
 {
-    // Initialize internal 24MHz clock
+    GPIOD->BSHR = 1U << SERVO_PIN;
+    Delay_Us(pulse_us);
+    GPIOD->BSHR = 1U << (16 + SERVO_PIN);
+    Delay_Us(SERVO_FRAME_US - pulse_us);
+}
+
+int main(void)
+{
     SystemInit();
 
-    // Initialize SWIO print terminal
-    SetupDebugPrintf();
-
-    // Enable clock gating for GPIOD
     RCC->APB2PCENR |= RCC_APB2Periph_GPIOD;
+    GPIOD->BSHR = 1U << (16 + SERVO_PIN);
+    // Configure only PD2; preserve PD1 for programming/debugging.
+    GPIOD->CFGLR = (GPIOD->CFGLR & ~(0xFU << (SERVO_PIN * 4)))
+                  | (0x3U << (SERVO_PIN * 4));
 
-    // Configure PD4 as Output Push-Pull 50MHz (0x3)
-    // Mask out bits 16-19 for Pin 4, then OR it with 0x3
-    // This strictly preserves PD1 (SWIO) settings
-    LED_PORT->CFGLR = (LED_PORT->CFGLR & ~(0xF << (LED_PIN * 4))) | (0x3 << (LED_PIN * 4));
-
-    printf("==================================================\r\n");
-    printf("        CH32V003 DEDICATED PD4 BLINK TEST         \r\n");
-    printf("==================================================\r\n");
-    printf("Target: PD4 (Physical Pin 1 on TSSOP20)\r\n");
-    printf("Status: Running...\r\n\r\n");
-
-    while(1)
+    while (1)
     {
-        // Turn LED ON
-        printf("[Status] PD4 -> HIGH (ON)\r\n");
-        LED_PORT->BSHR = 1 << LED_PIN;
-        Delay_Ms(1000);
-
-        // Turn LED OFF
-        printf("[Status] PD4 -> LOW  (OFF)\r\n");
-        LED_PORT->BSHR = 1 << (16 + LED_PIN);
-        Delay_Ms(1000);
+        for (unsigned int pulse_us = SERVO_MIN_US;
+             pulse_us < SERVO_MAX_US; pulse_us += SERVO_STEP_US)
+        {
+            servo_frame(pulse_us);
+        }
+        for (unsigned int frame = 0; frame < SERVO_HOLD_FRAMES; ++frame)
+        {
+            servo_frame(SERVO_MAX_US);
+        }
+        for (unsigned int pulse_us = SERVO_MAX_US;
+             pulse_us > SERVO_MIN_US; pulse_us -= SERVO_STEP_US)
+        {
+            servo_frame(pulse_us);
+        }
+        for (unsigned int frame = 0; frame < SERVO_HOLD_FRAMES; ++frame)
+        {
+            servo_frame(SERVO_MIN_US);
+        }
     }
 }
